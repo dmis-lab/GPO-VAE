@@ -1,6 +1,6 @@
 wandb
 results
-analysis_paper
+analysis
 datasets
 __pycache__
 *-sweep-*
