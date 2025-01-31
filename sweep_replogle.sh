@@ -1,0 +1,2 @@
+redun run paper/experiments/replogle/1_launch_train_sweeps.py launch_all_train_sweeps --num-agents-per-sweep 1 --start-device 5
+# redun run paper/experiments/replogle/2_launch_sweep_evals.py launch_all_sweep_evals --jobs-per-agent 5 --device 6 --qc-pass True --batch-size 128
