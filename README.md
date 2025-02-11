@@ -31,6 +31,11 @@ pip install 'rapids-singlecell[rapids12]' --extra-index-url=https://pypi.nvidia.
 ```
 - Install `rapids-singlecell` according to your CUDA version
 
+```
+pip install POT
+```
+- Install `POT` for preprocessing data
+
 ---
 ### Download datasets
 If you want to annotated dataset when training our model,
