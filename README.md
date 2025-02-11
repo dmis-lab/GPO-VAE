@@ -37,7 +37,9 @@ If you want to annotated dataset when training our model,
 ```
 pip install gdown
 gdown https://drive.google.com/uc?id=1gpnjtKYLAsyGrPqGT8NbTcvx2tiLowXN # datasets(rpe1, k562, adamson)
+gdown https://drive.google.com/uc?id=1C7vGxYqT-UvN1o_aYpVOcJXTDuJmH-lg # summary_stats_adamson.csv, summary_stats.xlsx
 tar -zxvf datasets.tar.gz
+tar -zxvf summary_stats.tar.gz
 ```
 ---
 ### Training models

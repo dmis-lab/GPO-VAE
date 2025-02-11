@@ -19,7 +19,6 @@ import scanpy as sc
 import rapids_singlecell as rsc
 import cupy as cp
 
-import pertpy as pt
 import ot
 
 from gpo_vae.analysis.average_treatment_effects import (
@@ -74,8 +73,6 @@ class AdamsonDataModule(PerturbationDataModule):
                     sub_adata = get_qc_annotation(sub_adata)
                     sub_adata_list.append(sub_adata)
             self.adata = anndata.concat(sub_adata_list, axis=0)
-            
-            # self.adata = get_qc_annotation(self.adata)
 
             ### Causalbench processing ###
             if stat_path is not None:

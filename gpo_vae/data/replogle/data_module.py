@@ -20,7 +20,6 @@ import scanpy as sc
 import rapids_singlecell as rsc
 import cupy as cp
 
-import pertpy as pt
 import ot
 
 from gpo_vae.analysis.average_treatment_effects import (
@@ -106,8 +105,7 @@ class ReplogleDataModule(PerturbationDataModule):
             self.adata.var.loc[rank_gene_set,'FC3'] = True
             ### annotate pertrubed gene ###
 
-            self.adata = get_ot_annotation(self.adata)
-            self.adata.write_h5ad(f"{data_path.split('.h5ad')[0]}_qc_ot_hvg_deg.h5ad")
+            self.adata.write_h5ad(f"{data_path.split('.h5ad')[0]}_qc_hvg_deg.h5ad")
 
         
         self.adata, qc_one_hot_cols, self.thr_values = get_qc_one_hot_cols(self.adata, thr=qc_threshold)
@@ -446,109 +444,6 @@ def filter_cells_by_amount(adata, k=100):
 
     return adata
 
-
-
-def get_ot_annotation(adata, mode='cinema', split=None):
-    print('### START : get OT annoation... ###')
-
-    if 'gene' in adata.obs.columns:
-        pert_key = 'gene'
-    else:
-        pert_key = 'T'
-		
-    if mode == 'cinema':
-        cot = pt.tl.Cinemaot()
-        sc.pp.pca(adata)
-        de = cot.causaleffect(
-            adata,
-            pert_key=pert_key,
-            control="non-targeting",
-            return_matching=True,
-            thres=0.5,
-            smoothness=1e-5,
-            eps=1e-3,
-            solver="Sinkhorn",
-        )
-
-        # matched_control_idx = de.obsm['ot'].argmax(axis=1)
-        matched_control_idx = de.obsm['ot'].argmin(axis=1)
-        control_mask = adata.obs["gene"] == "non-targeting"
-        control_indices = np.where(control_mask)[0]
-        global_control_idx = control_indices[matched_control_idx]
-        treated_mask = adata.obs["gene"] != "non-targeting"
-        adata.obs["matched_control_index"] = np.where(adata.obs.index)[0]
-        adata.obs.loc[treated_mask, "matched_control_index"] = global_control_idx
-        adata.obs["matched_control_index"] = adata.obs["matched_control_index"].astype("Int64")
-        return adata
-    
-    elif mode == 'ot':
-        adata_origin = adata.copy()
-        sc.pp.normalize_total(adata)
-        sc.pp.log1p(adata)
-
-        control_X = adata[adata.obs['gene']=='non-targeting'].X
-        global_control_idx = []
-        for g in tqdm(adata.obs['gene'].unique().tolist()):
-            perturbation_X = adata[adata.obs['gene']==g].X
-            cost_matrix = cdist(perturbation_X, control_X, metric='euclidean')
-            # max_cost = cost_matrix.max()
-            # reversed_cost_matrix = max_cost - cost_matrix
-            mu = np.ones(perturbation_X.shape[0]) / perturbation_X.shape[0]
-            nu = np.ones(control_X.shape[0]) / control_X.shape[0]
-            transport_matrix_max = ot.emd(mu, nu, cost_matrix)
-            control_indices = np.argmax(transport_matrix_max, axis=1)
-            global_control_idx += list(control_indices)
-    elif mode == 'ot2':
-        adata_origin = adata.copy()
-        sc.pp.normalize_total(adata)
-        sc.pp.log1p(adata)
-        control_X = adata[adata.obs['gene']=='non-targeting'].X.toarray()
-        q = np.ones(control_X.shape[0]) / control_X.shape[0]
-        global_control_idx = []
-        for g in tqdm(adata.obs['gene'].unique().tolist()):
-            perturbation_X = adata[adata.obs['gene']==g].X.toarray()
-            p = np.ones(perturbation_X.shape[0]) / perturbation_X.shape[0]
-            cost_matrix = ot.dist(perturbation_X, control_X, metric='euclidean') / 100.0
-            gamma = ot.sinkhorn(p, q, cost_matrix, 1.0)
-            control_indices = gamma.argmax(axis=1)
-            global_control_idx += list(control_indices)
-
-        pert_gene_len = adata[adata.obs['gene']!='non-targeting'].shape[0]
-        global_control_reidx = list(np.array(global_control_idx)+pert_gene_len)
-        adata.obs.loc[:, 'matched_control_index_ot_fast'] = global_control_reidx
-        adata.obs.loc[:, 'matched_control_index_ot_fast'] = adata.obs.loc[:, 'matched_control_index_ot_fast'].astype(str)
-        adata.obs.loc[adata.obs['gene'] == 'non-targeting','matched_control_index_ot_fast'] = adata[adata.obs['gene']=='non-targeting'].obs.index.astype(str)
-        adata_origin.obs['matched_control_index_ot_fast'] = adata.obs['matched_control_index_ot_fast']
-        adata_origin.write_h5ad(f"./datasets/causalbench_k562_qc_ot_hvg_deg_bsh2.h5ad")
-
-    else:
-        adata_origin = adata.copy()
-        sc.pp.normalize_total(adata)
-        sc.pp.log1p(adata)
-        
-        adata.obs['matched_ctrl_idx'] = -1
-        adata = adata[adata.obs['split'] == 'train']
-        pert_gene_ls = adata.obs.gene.unique().tolist()
-        pert_gene_ls.remove('non-targeting')
-        adata = adata[:,pert_gene_ls]
-
-        control_adata = adata[adata.obs['gene']=='non-targeting']
-        control_X = control_adata.X.toarray()
-        idx_to_oriidx_dict = {idx:oriidx for idx, oriidx in enumerate(control_adata.obs.index)}
-        gex_num = control_X.shape[1]
-        global_control_idx = []
-        for g in tqdm(adata.obs['gene'].unique().tolist()):
-            perturbation_X = adata[adata.obs['gene']==g].X.toarray()
-            wd_np = np.array([wasserstein_distance(control_X[:, i], perturbation_X[:, i]) for i in range(gex_num)])
-            control_indices = [np.matmul(abs(pert - control_X), wd_np).argmax() for pert in perturbation_X]
-            global_control_idx += control_indices
-        
-        adata_origin.obs['matched_ctrl_idx'] = '-1'
-        train_mask = adata_origin.obs['split'] == 'train'
-        adata_origin.obs.loc[train_mask, 'matched_ctrl_idx'] = list(map(idx_to_oriidx_dict.get, global_control_idx))
-
-    print('### DONE  : get OT annoation... ###')
-    return adata
 
 def get_perturbed_annotation(adata):
     print('### START : get perturbed gene annoatation... ###')

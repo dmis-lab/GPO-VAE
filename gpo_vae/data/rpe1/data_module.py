@@ -19,7 +19,6 @@ import scanpy as sc
 import rapids_singlecell as rsc
 import cupy as cp
 
-import pertpy as pt
 import ot
 
 from gpo_vae.analysis.average_treatment_effects import (

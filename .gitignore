@@ -6,3 +6,4 @@ __pycache__
 *-sweep-*
 output
 eval.ipynb
+datasets.tar.gz
