@@ -36,7 +36,7 @@ pip install 'rapids-singlecell[rapids12]' --extra-index-url=https://pypi.nvidia.
 If you want to annotated dataset when training our model,
 ```
 pip install gdown
-gdown https://drive.google.com/uc?id=1OIi1Z3fiw8yKbzarLXMlxy5tJRm1w8Rx # datasets(rpe1, replogle, adamson)
+gdown https://drive.google.com/uc?id=1gpnjtKYLAsyGrPqGT8NbTcvx2tiLowXN # datasets(rpe1, k562, adamson)
 tar -zxvf datasets.tar.gz
 ```
 ---
